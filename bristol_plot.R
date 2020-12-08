@@ -15,6 +15,11 @@ msoa <- st_read(here("URBN-CLIMR/data/msoa_shapefiles/bristol_msoas.shp"))
 rivers <- st_read(here("URBN-CLIMR/data/os_open_rivers/data/WatercourseLink.shp"))
 green <- st_read(here("URBN-CLIMR/data/os_open_green_space/data/GB_AccessPoint.shp"))
 
+bristl <- read.csv("~/OneDrive - University of Exeter/URBN_CLIMR/data/population_data/lad_tus_hse_23.txt")
+msoa <- st_read("~/OneDrive - University of Exeter/URBN_CLIMR/data/msoa_shapefiles/bristol_msoas.shp")
+rivers <- st_read("~/OneDrive - University of Exeter/URBN_CLIMR/data/os_open_rivers/data/WatercourseLink.shp")
+green <- st_read("~/OneDrive - University of Exeter/URBN_CLIMR/data/os_open_green_space/data/GB_AccessPoint.shp")
+
 # Demographic data wrangle
 bris_sum <- bristl %>% 
   group_by(area) %>% 
@@ -72,3 +77,77 @@ ggplot() +
   theme(legend.position="none")
 
 # geom_sf(data = green_bris, aes(color = accessType))
+
+# this code below is super messy and far from elegant, was just trying to get things to work...
+# almost workign but not quite
+# I am just picking one time slot, i guess we should average over the year
+# or pick out the max temp or do some other things...number of days over X degrees or
+# use it to compute wet bulb temp with humidity and then pick number of days over X degrees
+library(raster)
+library(ncdf4)
+
+tmax_nc <- nc_open("~/OneDrive - University of Exeter/URBN_CLIMR/data/UKCP/tasmax_rcp85_land-cpm_uk_2.2km_01_day_19801201-19811130.nc")
+lon <- ncvar_get(tmax_nc,"longitude")
+nlon <- dim(lon)
+lat <- ncvar_get(tmax_nc,"latitude")
+nlat <- dim(lat)
+t_max <- ncvar_get(tmax_nc,"tasmax")
+time <- ncvar_get(tmax_nc,"yyyymmdd")
+
+tmp <- t_max[,,1]
+
+library(reshape2)
+
+tmp1 <- melt(lon)
+tmp2 <- melt(lat)
+tmp3 <- melt(tmp)
+
+df <- data.frame(lat=tmp2$value,
+                 lon=tmp1$value,
+                 temp=tmp3$value)
+
+projcrs <- st_crs(bris_geo)
+temp_df <- st_as_sf(x = df,                         
+                    coords = c("lon", "lat"),
+                    crs = "+proj=longlat +datum=WGS84 +no_defs")
+
+trans_temp <- st_transform(temp_df, projcrs)
+
+#up to here works. I have the temperature as an sf and on the same projection as bris_geo
+# now its a matter of extracting the average value for each MSOA which I havent gotten to work yet
+
+# my idea was to convert the dataframe to a raster and then extract the average value from that raster
+# but i am having trouble getting that to work. doesnt want to play nice and convert to a raster
+test <- raster(crs = crs(trans_temp), vals = 0, resolution = c(0.5, 0.5), ext = extent(bris_geo)) %>%
+  rasterize(trans_temp, ., field="temp")
+
+spg <- df
+coordinates(spg) <- ~ lon + lat
+proj4string(spg)=CRS("+proj=longlat +datum=WGS84 +no_defs") # set it to lat-long
+# coerce to SpatialPixelsDataFrame
+gridded(spg) <- TRUE
+# coerce to raster
+rasterDF <- raster(spg)
+projection(rasterDF) <- "+proj=longlat +datum=WGS84 +no_defs"
+values(rasterDF) <- df$temp
+
+temp_bris <- trans_temp %>%
+  st_crop(st_bbox(bris_geo))
+
+bris_geo$temp <- st_intersects(bris_geo, temp_bris)
+
+ggplot() + 
+  geom_sf(data = bris_geo, aes(fill = temp, color=temp))
+
+# Create centroid from polygons
+pt <- st_centroid(bris_geo, of_largest_polygon = TRUE)
+
+test <- st_join(pt,temp_bris)
+
+
+
+
+#test <- rasterize(trans_temp,r.raster,field="temp")
+#test2 <- (test,projection(bris_geo))
+#extract(test, bris_geo)
+
