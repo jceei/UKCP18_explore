@@ -1,0 +1,13 @@
+name: CLIMR
+title: CLIMR
+username:
+account: spoonerf
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 3473471
+bundleId: 4096147
+url: https://spoonerf.shinyapps.io/CLIMR/
+when: 1610638495.75664
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: climr_bris_data.RDA
