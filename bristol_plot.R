@@ -38,15 +38,18 @@ green_bris <- green %>%
   st_crop(st_bbox(bris_geo))
 # "Normalised"
 bris_geo$green_count <- lengths(st_intersects(bris_geo, green_bris))
-bris_geo$green_count_n <- bris_geo$green_count/max(bris_geo$green_count)
+bris_geo$green_count_n <- 1-(bris_geo$green_count/max(bris_geo$green_count))
 
 # Temperature
 bris_geo <- tas %>%
   select(msoa11cd, tas) %>%
   left_join(bris_geo, ., by='msoa11cd')
 # Normalise tas
-bris_geo$tas_n = (bris_geo$tas - 25)/(35 - 25)
+bris_geo$tas_n = (bris_geo$tas - 20)/(35 - 20)
 bris_geo$tas_n[is.na(bris_geo$tas_n)] = mean(bris_geo$tas_n, na.rm=TRUE)
+
+# Impact
+bris_geo$impact = bris_geo$tas_n * bris_geo$green_count_n * bris_geo$mean_age_n
 
 # Plots:
 # Rivers
@@ -66,28 +69,66 @@ ggplot() +
 # Mean age (Normalised)
 bris_geo %>% 
   ggplot(data = .) +
-  geom_sf(aes(fill = mean_age_n, colour = mean_age_n))+
-  scale_color_continuous_sequential(palette = "Blues", rev=TRUE, 
-                                    name="Average age (years)")+
-  scale_fill_continuous_sequential(palette = "Blues", rev=TRUE, 
-                                   name="Average age (years)")+
-  theme_dark() 
+  geom_sf(aes(fill = mean_age_n, colour = mean_age_n)) +
+  scale_color_continuous_sequential(palette = "Blues", rev=TRUE, name="Age", breaks=c(0,1),labels=c("Younger","Older"), limits=c(0,1))+
+  scale_fill_continuous_sequential(palette = "Blues", rev=TRUE, name="Age", breaks=c(0,1),labels=c("Younger","Older"), limits=c(0,1))+
+  guides(fill = guide_colourbar(barwidth = 0.5, barheight = 10), color=guide_colourbar(barwidth = 1, barheight = 10)) +
+  theme_dark(base_size = 18) 
+
+# Mean age
+bris_geo %>% 
+  ggplot(data = .) +
+  geom_sf(aes(fill = mean_age, colour = mean_age)) +
+  scale_color_continuous_sequential(palette = "Blues", rev=TRUE, name="Mean age (years)")+
+  scale_fill_continuous_sequential(palette = "Blues", rev=TRUE, name="Mean age (years)")+
+  guides(fill = guide_colourbar(barwidth = 0.5, barheight = 10), color=guide_colourbar(barwidth = 1, barheight = 10)) +
+  theme_dark(base_size = 18) 
+
+
+# Greenspace_n
+ggplot() + 
+  geom_sf(data = bris_geo, aes(fill = green_count_n, color=green_count_n)) +
+  scale_color_continuous_sequential(palette = "Greens", rev=TRUE, name="Greenspace", breaks=c(0,1),labels=c("More access","Less access"), limits=c(0,1))+
+  scale_fill_continuous_sequential(palette = "Greens", rev=TRUE, name="Greenspace", breaks=c(0,1),labels=c("More access","Less access"), limits=c(0,1)) +
+  guides(fill = guide_colourbar(barwidth = 0.5, barheight = 10), color=guide_colourbar(barwidth = 1, barheight = 10)) +
+  theme_dark(base_size = 18) 
+  # theme(legend.position="none")
+# labels=c('Less access', 'More access'), breaks=c(0,1)
 
 # Greenspace
 ggplot() + 
-  geom_sf(data = bris_geo, aes(fill = green_count_n, color=green_count_n)) +
-  scale_color_continuous_sequential(palette = "Greens", rev=FALSE, name="Number of green spaces")+
-  scale_fill_continuous_sequential(palette = "Greens", rev=FALSE, name="Number of green spaces") +
-  theme_dark() +
-  theme(legend.position="none")
+  geom_sf(data = bris_geo, aes(fill = green_count, color=green_count)) +
+  scale_color_continuous_sequential(palette = "Greens", rev=TRUE, name="Number of greenspaces")+
+  scale_fill_continuous_sequential(palette = "Greens", rev=TRUE, name="Number of greenspaces") +
+  guides(fill = guide_colourbar(barwidth = 0.5, barheight = 10), color=guide_colourbar(barwidth = 1, barheight = 10)) +
+  theme_dark(base_size = 18) 
 
 # Temperature
 ggplot() + 
   geom_sf(data = bris_geo, aes(fill = tas_n, color=tas_n)) +
-  scale_color_continuous_sequential(palette = "Reds", rev=FALSE, name="Temperature")+
-  scale_fill_continuous_sequential(palette = "Reds", rev=FALSE, name="Temperature") +
-  theme_dark() +
-  theme(legend.position="none")
+  scale_color_continuous_sequential(palette = "Reds", rev=TRUE, name=paste("Temperature (30 Jun 2021)", sep='\n'), breaks=c(0,0.33,0.67,1),labels=c("20°C","25°C","30°C","35°C"), limits=c(0,1))+
+  scale_fill_continuous_sequential(palette = "Reds", rev=TRUE, name=paste("Temperature (30 Jun 2021)", sep='\n'), breaks=c(0,0.33,0.67,1),labels=c("20°C","25°C","30°C","35°C"), limits=c(0,1))+
+  guides(fill = guide_colourbar(barwidth = 0.5, barheight = 10), color=guide_colourbar(barwidth = 1, barheight = 10)) +
+  theme_dark(base_size = 18) 
+  # theme(legend.position="none")
+
+
+# "Hazard"
+ggplot() + 
+  geom_sf(data = bris_geo, aes(fill = tas_n, color=tas_n)) +
+  scale_color_continuous_sequential(palette = "Reds", rev=TRUE, name="Hazard", breaks=c(0.5,0.8),labels=c("Low", "High"), limits=c(0.5,0.8))+
+  scale_fill_continuous_sequential(palette = "Reds", rev=TRUE, name="Hazard", breaks=c(0.5,0.8),labels=c("Low", "High"), limits=c(0.5, 0.8))+
+  guides(fill = guide_colourbar(barwidth = 0.5, barheight = 10), color=guide_colourbar(barwidth = 1, barheight = 10)) +
+  theme_dark(base_size = 18) 
+# theme(legend.position="none")
+
+# Impact
+ggplot() + 
+  geom_sf(data = bris_geo, aes(fill = impact, color=impact)) +
+  scale_color_continuous_sequential(palette = "Grays", rev=TRUE, name="Impact", breaks=c(0,1),labels=c("Lowest","Highest"), limits=c(0,1))+
+  scale_fill_continuous_sequential(palette = "Grays", rev=TRUE, name="Impact", breaks=c(0,1),labels=c("Lowest","Highest"), limits=c(0,1))+
+  guides(fill = guide_colourbar(barwidth = 0.5, barheight = 10), color=guide_colourbar(barwidth = 1, barheight = 10)) +
+  theme_dark(base_size = 18) 
 
 
 bris_geo_84 <- st_transform(bris_geo, "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs")
