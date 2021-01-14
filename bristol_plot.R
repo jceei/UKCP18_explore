@@ -10,7 +10,7 @@ library(colorspace)
 
 # Load data
 bristl <- read.csv(here("URBN-CLIMR/data/population_data/lad_tus_hse_23.txt"))
-msoa <- st_read(here("URBN-CLIMR/data/bristol_msoas/bristol_msoas.shp"))
+msoa <- st_read(here("URBN-CLIMR/data/msoa_shapefiles//bristol_msoas.shp"))
 rivers <- st_read(here("URBN-CLIMR/data/os_open_rivers/data/WatercourseLink.shp"))
 green <- st_read(here("URBN-CLIMR/data/os_open_green_space/data/GB_AccessPoint.shp"))
 tas <- read.csv(here("URBN-CLIMR/data/UKCP/bristol_tasmax_20210630.csv")) %>%
@@ -89,6 +89,10 @@ ggplot() +
   theme_dark() +
   theme(legend.position="none")
 
+
+bris_geo_84 <- st_transform(bris_geo, "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs")
+
+save(bris_geo_84, file = "climr_bris_data_84.RDA")
 
 #### Reproject Data ###
 # # this code below is super messy and far from elegant, was just trying to get things to work...
