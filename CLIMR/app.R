@@ -10,92 +10,136 @@
 library(shiny)
 library(leaflet)
 library(sf)
-load("climr_bris_data_84.RDA")
+library(dplyr)
+#load("climr_bris_data_84.RDA")
+bristol_data<- readRDS("dummy_data_bristol.RDS")
 
-vars <- colnames(bris_geo_84)[c(7,8,10, 12)]
+exposure <- bristol_data %>% 
+    select(msoa11cd, exposure) 
+
+vulnerability <- bristol_data %>% 
+    select(msoa11cd, vulnerability) 
+
+hazard <- bristol_data %>% 
+    select(msoa11cd, hazard) 
+
+risk <- bristol_data %>% 
+        select(msoa11cd, risk) 
+
+
+pal_exposure <- colorBin("RdPu", domain = as.numeric(exposure$exposure), na.color = "transparent")
+pal_vulnerability <- colorBin("Purples", domain = as.numeric(vulnerability$vulnerability), na.color = "transparent")
+pal_hazard <- colorBin("Reds", domain = as.numeric(hazard$hazard), na.color = "transparent")
+pal_risk <- colorBin("YlOrRd", domain = as.numeric(risk$risk), na.color = "transparent")
 
 # Define UI for application that draws a histogram
 ui <- fluidPage(
+    
+    theme = bslib::bs_theme(version = 4, bootswatch = "minty"),
 
     # Application title
     titlePanel("CLIMR example"),
 
-    # Sidebar with a slider input for number of bins 
-    sidebarLayout(
-        sidebarPanel(
-            selectInput("variable",
-                        "Select a variable:",
-                        vars,
-                        selected = vars[1])),
-
         # Show a plot of the generated distribution
         mainPanel(
-            leafletOutput("climrPlot")
+            leafletOutput("climrPlot", height=600, width = 900)
         )
     )
-)
 
 # Define server logic required to draw a histogram
 server <- function(input, output) {
 
     output$climrPlot <- renderLeaflet({
         
-        mapselect <- input$variable
-        pal <- colorBin("YlOrRd", domain = as.numeric(bris_geo_84[[mapselect]]))
+    labels <- sprintf(
+        "<strong>%s</strong><br/>Exposure: %g <br/>Vulnerability: %g <br/>Hazard: %g <br/>Risk: %g" ,
+        bristol_data$msoa11nm, bristol_data$exposure,bristol_data$vulnerability,
+        bristol_data$hazard, bristol_data$risk
+    ) %>% lapply(htmltools::HTML)
         
-        if(input$variable == c("mean_age")){
-            labels <- sprintf(
-                "<strong>%s</strong><br/>%g years",
-                bris_geo_84$msoa11nm, bris_geo_84$mean_age
-            ) %>% lapply(htmltools::HTML)
-        }
-        
-        if(input$variable == c("mean_wage")){
-            labels <- sprintf(
-                "<strong>%s</strong><br/>£%g  per hour",
-                bris_geo_84$msoa11nm, bris_geo_84$mean_wage
-            ) %>% lapply(htmltools::HTML)
-        }
-        
-        if(input$variable == c("green_count")){
-            labels <- sprintf(
-                "<strong>%s</strong><br/>%g Green-ness",
-                bris_geo_84$msoa11nm, bris_geo_84$green_count
-            ) %>% lapply(htmltools::HTML)
-            pal <- colorBin("Greens", domain = as.numeric(bris_geo_84[[mapselect]]))
-        }
-        
-        if(input$variable == c("tas")){
-            labels <- sprintf(
-                "<strong>%s</strong><br/>%g Max temp",
-                bris_geo_84$msoa11nm, bris_geo_84$tas
-            ) %>% lapply(htmltools::HTML)
-            pal <- colorBin("YlOrRd", domain = as.numeric(bris_geo_84[[mapselect]]))
-        }
-        
-       leaflet(bris_geo_84) %>%
+       leaflet(bristol_data) %>%
             setView(-2.6, 51.47, 11) %>%
             addTiles() %>%
-            addPolygons(
-                fillColor = ~pal(as.numeric(bris_geo_84[[mapselect]])),
+                      addPolygons(data = exposure,
+                        fillColor = pal_exposure(exposure$exposure),
+                group = "Exposure",
                 weight = 2,
                 opacity = 1,
                 color = "white",
                 dashArray = "3",
-                fillOpacity = 0.7,
+                fillOpacity = 0.8,
                 highlight = highlightOptions(
                     weight = 5,
                     color = "#666",
                     dashArray = "",
-                    fillOpacity = 0.7,
+                    fillOpacity = 0.5,
                     bringToFront = TRUE),
                 label = labels,
                 labelOptions = labelOptions(
                     style = list("font-weight" = "normal", padding = "3px 8px"),
                     textsize = "15px",
-                    direction = "auto")) %>%
-           addLegend(pal = pal, values = ~density, opacity = 0.7, title = NULL,
-                     position = "bottomright")
+                    direction = "auto")) %>% 
+            addPolygons(data = vulnerability,
+                        fillColor = pal_vulnerability(vulnerability$vulnerability),
+                        group = "Vulnerability",
+                        weight = 2,
+                        opacity = 1,
+                        color = "white",
+                        dashArray = "3",
+                        fillOpacity = 0.8,
+                        highlight = highlightOptions(
+                            weight = 5,
+                            color = "#666",
+                            dashArray = "",
+                            fillOpacity = 0.5,
+                            bringToFront = TRUE),
+                        label = labels,
+                        labelOptions = labelOptions(
+                            style = list("font-weight" = "normal", padding = "3px 8px"),
+                            textsize = "15px",
+                            direction = "auto")) %>% 
+            addPolygons(data = hazard,
+                        fillColor = pal_hazard(hazard$hazard),
+                        group = "Hazard",
+                        weight = 2,
+                        opacity = 1,
+                        color = "white",
+                        dashArray = "3",
+                        fillOpacity = 0.8,
+                        highlight = highlightOptions(
+                            weight = 5,
+                            color = "#666",
+                            dashArray = "",
+                            fillOpacity = 0.5,
+                            bringToFront = TRUE),
+                        label = labels,
+                        labelOptions = labelOptions(
+                            style = list("font-weight" = "normal", padding = "3px 8px"),
+                            textsize = "15px",
+                            direction = "auto")) %>% 
+            addPolygons(data = risk,
+                        fillColor = pal_risk(risk$risk),
+                        group = "Risk",
+                        weight = 2,
+                        opacity = 1,
+                        color = "white",
+                        dashArray = "3",
+                        fillOpacity = 0.8,
+                        highlight = highlightOptions(
+                            weight = 5,
+                            color = "#666",
+                            dashArray = "",
+                            fillOpacity = 0.5,
+                            bringToFront = TRUE),
+                        label = labels,
+                        labelOptions = labelOptions(
+                            style = list("font-weight" = "normal", padding = "3px 8px"),
+                            textsize = "15px",
+                            direction = "auto")) %>% 
+       addLayersControl(
+           overlayGroups = c("Exposure", "Vulnerability", "Hazard", "Risk"),
+           options = layersControlOptions(collapsed = FALSE, autoZIndex = TRUE)
+       )
         
     })
 }
